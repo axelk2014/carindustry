@@ -1,12 +1,11 @@
 # Car industry  script 14/7/17
 
-library(zoo)
-library(xts)
 library(seasonal)
+library(reshape2)
 library(ggseas)
 library(ggthemes)
 
-setwd("/Users/alex/Documents/datasets/car_industry")
+setwd("/Users/alex/Documents/car-industry")
 
 # xls downloaded from  http://www.abs.gov.au/AUSSTATS/abs@.nsf/DetailsPage/9314.0April%202017?OpenDocument
 # on Saturday 15/7/17
@@ -21,21 +20,28 @@ carsales <- read.csv(textConnection(skip_toprows), header = TRUE, stringsAsFacto
 carsales$Date <- as.Date(as.yearmon(carsales$X,"%b-%Y"))
 
 carsales.ts <- ts(carsales[,5], frequency=12, start=c(1994,1))
-carsales.season <- decompose(carsales.ts)
+carsales.ts.suv <- ts(carsales[,3],frequency=12, start=c(1994,1))
+carsales.ts.passenger <- ts(carsales[,2],frequency=12, start=c(1994,1))
 
+
+# base R plot
+carsales.season <- decompose(carsales.ts)
 plot(carsales.season)
 axis.Date(1,at=carsales.ts,labels=format(df$timestamp,"%b-%d"),las=2)
 
-#as.dataframe?
-#df.carsales.ts <- tapply(carsales.ts, list(year=floor(time(carsales.ts)), month=month.abb[cycle(carsales.ts)]),c)
-
-dfTime = attributes(carsales.ts)[[1]]
-dfTime = seq(dfTime[1],dfTime[2], length.out=(dfTime[2]-dfTime[1])*dfTime[3])
-
 # nicer plot
 df.carsales <- tsdf(carsales.ts)
+df.carsales.suv <- tsdf(carsales.ts.suv)
+df.carsales.passenger <- tsdf(carsales.ts.passenger)
 
-ggsdc(df.carsales, aes(x = x, y = y),
+df.carsales.all <- list(df.carsales,df.carsales.suv,df.carsales.passenger) %>%
+  Reduce(function(dtf1,dtf2) left_join(dtf1,dtf2,by="x"), .)
+names(df.carsales.all) <- c("Date","Total","SUV","Passenger")
+
+# change wide to long
+df.carsales.long <- melt(df.carsales.all, id.vars=c("Date"))
+
+ggsdc(df.carsales.long, aes(x = Date, y = value, colour=variable),
       method = "decompose", start = c(1994, 1), frequency = 12) +
   geom_line() +
   labs(x = "   \n  ", colour = "") +
@@ -47,21 +53,7 @@ ggsdc(df.carsales, aes(x = x, y = y),
   ggtitle("Total car sales") #+theme(legend.position = c(0.17, 0.92))
 
 
-old_hc <- theme_set(theme_hc())
-add_el <- theme_hc() +
-  theme(panel.grid.minor = element_line(colour = "gray", size = 0.5) )
-add_el$panel.grid.minor
-
-#grid.text("Source: Statistics New Zealand, Balance of Payments", 0.7, 0.03,
-        #  gp = gpar(fontfamily = "myfont", fontface = "italic", cex = 0.7))   
 
 
-# > min(carsales$Date.s)
-[1] "1994-01-01"
-#ts(data=carsales[,c(11,10)],start="1994-01-01", frequency=1)
-#stocks <- xts(df[,-1], order.by=as.Date(df[,1], "%m/%d/%Y"))
-
-carsales.xts <- xts(carsales[,10], order.by=carsales$Date.s, "%Y-%m-%d")
-plot.xts(as.xts(carsales.xts))
 
 
